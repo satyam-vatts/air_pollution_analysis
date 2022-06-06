@@ -1,0 +1,368 @@
+---
+title: "Air Pollution Analysis"
+output: html_document
+---
+
+```{r}
+df <- read.csv("HoChiMinhCity_PM2.5_2017_2021_Master_MTD.csv")
+View(df)
+```
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+# Check if there are any null values in the dataframe
+any(is.na((df)))
+```
+
+
+```{r}
+#year and month wise distribution
+df %>% 
+    group_by(Year,Month) %>% 
+    summarise(Total_Count  = n())
+
+```
+```{r}
+#Remove Jan month value from the dataset as there is only one value from the month of Jan from 2018,2019,2020 and 2021
+
+df= subset(df,Month != 1)
+df %>% 
+    group_by(Year,Month) %>% 
+    summarise(Total_Count  = n())
+
+```
+
+
+```{r}
+list("Summary" = summary(df$AQI), 
+     "Standard Deviation" = sd(df$AQI, na.rm=TRUE), 
+     "Range" = range(df$AQI, na.rm=TRUE), 
+     "Inter-Quartile Range(IQR)" = IQR(df$AQI, na.rm=TRUE)) 
+```
+
+
+```{r}
+df %>% 
+    group_by(AQI_Category) %>% 
+    summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%arrange(desc(Total_Count))
+```
+
+
+```{r}
+# AQI distribution for the overall data
+hist(df$AQI, 
+     main = "Histogram for AQI", 
+     xlab = "AQI",
+     freq = TRUE,
+    # probability = TRUE,
+     breaks = 10,
+     border = "Blue",
+     col = "Turquoise",
+     labels = TRUE,
+     las=1   ,
+     ylim = c(0,1200),
+     xlim = c(0,200))
+```
+
+```{r}
+
+df %>% 
+    group_by(AQI_Category) %>% 
+    summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2))  %>%
+    ggplot(aes(x = reorder(AQI_Category, -Total_Count), y = Total_Count))+ geom_col(fill="pink",color = "brown")+
+    geom_text(aes(label = Total_Count), vjust = -0.2,size = 4)+
+     labs(x = "AQI Category",
+          y = "Total Count",
+          title = "Data Distribution on AQI Category")+
+   theme(axis.text.x = element_text(angle = 0),plot.title = element_text(hjust = 0.5)) 
+   
+```
+
+```{r}
+df %>% 
+    group_by(Year,AQI_Category) %>% 
+    summarise(Total_Count  = n())  %>%
+ ggplot(aes(x = Year, y = Total_Count,fill= AQI_Category))+ geom_col(color = "brown", width =0.5,position = "fill")+
+  scale_fill_brewer(palette = "Dark2")
+    theme(axis.text.x = element_text(angle = 0),plot.title = element_text(hjust = 0.5)) 
+
+```
+```{r}
+#Year 2020 has only ~20% of the data with AQI categorized as Unhealthy which is lowest amongst all years
+```
+
+
+```{r Fig1, fig.height=5, fig.width=15}
+df %>% 
+    group_by(Hour,AQI_Category) %>% 
+    summarise(Total_Count  = n()) %>%
+  ggplot(aes(x = Hour, y = Total_Count,fill= AQI_Category))+ geom_col(color = "brown", width =0.5,position = "fill")+
+  scale_fill_brewer(palette = "Dark2")
+
+```
+```{r Fig1, fig.height=5, fig.width=15}
+df_2020 %>% 
+    group_by(Hour,AQI_Category) %>% 
+    summarise(Total_Count  = n()) %>%
+  ggplot(aes(x = Hour, y = Total_Count,fill= AQI_Category))+ geom_col(color = "brown", width =0.5,position = "fill")+
+  scale_fill_brewer(palette = "Dark2")
+```
+
+```{r}
+#Above chart shows the peak hours where AQI Category = Unhealthy for more than 50% of the data 
+# Hours = 8,9,10,11,12,13 
+
+# Late night and early morning 75% of the data has AQI in the range of Good to Moderate (Hours = 21,22,23,0,1,2)
+```
+
+```{r}
+df_weather <- read.csv("D:/Semester 1/DANA/Team Project/weather.csv")
+View(df_weather)
+
+new_df <- merge(df,df_weather,by = c("Day","Month","Year","Hour"))
+View(new_df)
+```
+
+```{r}
+new_df %>% 
+    group_by(weatherDesc) %>% 
+    summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%arrange(desc(Total_Count))
+```
+```{r}
+
+new_df$weatherDescNew <- ifelse(new_df$weatherDesc %in% c("Partly cloudy","Clear","Sunny","Patchy rain possible","Light rain shower","Cloudy","Moderate or heavy rain shower"),new_df$weatherDesc , "Others")
+
+new_df %>% 
+    group_by(weatherDescNew) %>% 
+    summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%arrange(desc(Total_Count))
+```
+
+
+
+```{r Fig1, fig.height=5, fig.width=15}
+# Relation between AQI Category and Weather Description
+new_df %>% 
+    group_by(weatherDescNew,AQI_Category) %>% 
+    summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%
+  ggplot(aes(reorder(x = weatherDescNew, -Total_Count), y = Total_Count,fill= AQI_Category))+ 
+  geom_bar( stat="identity")+
+       labs(x = "Weather Description",
+          y = "Total Count",
+          title = "Data Distribution on Weather Description")+
+   scale_fill_brewer(palette = "Set2")
+
+```
+```{r Fig1, fig.height=5, fig.width=15}
+new_df %>% 
+    group_by(weatherDescNew,AQI_Category) %>% 
+    summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%
+  ggplot(aes(reorder(x = weatherDescNew, -Total_Count), y = Total_Count,fill= AQI_Category))+ 
+  geom_bar( position = "fill",stat="identity",width =0.7)+
+       labs(x = "Weather Description",
+          y = "Proportion",
+          title = "Data Distribution on Weather Description")+
+   scale_fill_brewer(palette = "Set2")
+
+## No significant relation between AQI and Weather Description
+
+```
+```{r}
+# Check effect of windspeed on AQI
+
+hist(new_df$windspeedKmph, 
+     main = "Histogram for Wind Speed", 
+     xlab = "Windspeed",
+     freq = TRUE,
+     #probability = TRUE,
+     breaks = 10,
+     border = "Blue",
+     col = "Turquoise",
+     labels = TRUE,
+     las=1   ,
+     ylim = c(0,1200))
+```
+```{r}
+boxplot(new_df$windspeedKmph,
+        las=1,
+        main = "Box Plot for WindSpeed",
+        #xlab = "Number of quantitues sold",
+        ylab = "WindSpeed",
+        col = "Turquoise",
+        border = "blue",
+        horizontal = F,
+        outline = T)
+```
+
+
+
+
+```{r}
+
+#, labels = c("Vey Low", "Low", "Medium","High", "Very High")
+library(OneR)
+new_df$windspeed_Cat <- bin( new_df$windspeedKmph, nbins = 3,method = "content", label = c("Low","Medium","High"))
+ 
+
+new_df %>% group_by(windspeed_Cat) %>%
+   summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2))
+
+```
+
+```{r Fig1, fig.height=5, fig.width=15}
+new_df %>% group_by(windspeed_Cat,AQI_Category) %>%
+   summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%
+  ggplot(aes(x = windspeed_Cat, y = Total_Count,fill= AQI_Category))+ 
+  geom_bar(stat="identity",width =0.4, color = "Dark Green")+
+       labs(x = "Wind Speed",
+          y = "Total Count",
+          title = "Data Distribution on Wind Speed")+
+   scale_fill_brewer(palette = "PiYG", direction = -1)
+```
+```{r}
+df_2020 <- subset(new_df,Year== 2020) 
+ df_2020 %>% group_by(windspeed_Cat,AQI_Category) %>%
+   summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%
+  ggplot(aes(x = windspeed_Cat, y = Total_Count,fill= AQI_Category))+ 
+  geom_bar(position = "fill",stat="identity",width =0.4, color = "Dark Green")+
+       labs(x = "Wind Speed",
+          y = "Total Count",
+          title = "Data Distribution on Wind Speed")+
+   scale_fill_brewer(palette = "PiYG", direction = -1)
+```
+
+```{r Fig1, fig.height=5, fig.width=15}
+new_df %>% group_by(windspeed_Cat,AQI_Category) %>%
+   summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%
+  ggplot(aes(x = windspeed_Cat, y = Total_Count,fill= AQI_Category))+ 
+  geom_bar(position = "fill",stat="identity",width =0.4, color = "Dark Green")+
+       labs(x = "Wind Speed",
+          y = "Proportion",
+          title = "Data Distribution on Wind Speed")+
+   scale_fill_brewer(palette = "PiYG", direction = -1)
+
+```
+```{r}
+#Above figure shows that as the wind speed increases AQI improves. For wind speed categorized under "High", 76% of the #data has AQI as Low and Medium
+```
+
+```{r Fig1, fig.height=5, fig.width=15}
+new_df %>% 
+    group_by(visibility,AQI_Category) %>% 
+    summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%
+  ggplot(aes(x = visibility, y = Total_Count,fill= AQI_Category))+ 
+  geom_bar( stat="identity")+
+       labs(x = "Visibility",
+          y = "Total Count",
+          title = "Data Distribution on Visibility")+
+   scale_fill_brewer(palette = "Set2")
+```
+
+```{r}
+# Check effect of humidity on Air Quality
+
+hist(new_df$humidity, 
+     main = "Histogram for Humidity", 
+     xlab = "Humidity",
+     freq = TRUE,
+     #probability = TRUE,
+     breaks = 10,
+     border = "Turquoise",
+     col = "Pink",
+     labels = TRUE,
+     las=1   ,
+     ylim = c(0,800),
+     xlim = c(20,100))
+
+```
+```{r}
+
+#, labels = c("Vey Low", "Low", "Medium","High", "Very High")
+ new_df$humidity_cat <- cut( new_df$humidity,  c(-Inf, 30, 60, Inf), labels = c("Dry","Normal","Humid"))
+ 
+
+new_df %>% group_by(humidity_cat) %>%
+   summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2))
+
+```
+```{r}
+new_df %>% group_by(humidity_cat,AQI_Category) %>%
+   summarise(Total_Count  = n()) %>% mutate(Perc_Contri= round(Total_Count/sum(Total_Count)*100,2)) %>%
+  ggplot(aes(x = humidity_cat, y = Total_Count,fill= AQI_Category))+ 
+  geom_bar(position = "fill",stat="identity",width =0.4, color = "Dark Green")+
+       labs(x = "Humidity",
+          y = "Proportion",
+          title = "Data Distribution on Humidity")+
+   scale_fill_brewer(palette = "Set1", direction = -1)
+
+# No impact of humidity on Air Quality
+```
+```{r}
+# Check effect of temperature on Air Quality
+
+hist(new_df$tempC, 
+     main = "Histogram for Temperature (°C)", 
+     xlab = "Temperature (°C)",
+     freq = TRUE,
+     #probability = TRUE,
+     breaks = 10,
+     border = "Dark Blue",
+     col = "light blue",
+     labels = TRUE,
+     las=1   ,
+     ylim = c(0,1300))
+
+# temperature scale is in the normal moderate range, hence would not influence AQI
+
+```
+```{r}
+boxplot(new_df$tempC,
+        las=1,
+        main = "Box Plot for Temperature (°C)",
+        #xlab = "Number of quantitues sold",
+        ylab = "Temperature (°C)",
+        col = "light blue",
+        border = "dark blue",
+        horizontal = F,
+        outline = T)
+```
+
+```{r}
+setwd("D:/Semester 1/DANA/Team Project")
+write.csv(new_df,"Final_Merged_Dataset.csv",row.names = FALSE)
+```
+
+
+
+
+```{r}
+cor.test(new_df$AQI,new_df$windspeedKmph)
+qplot(new_df$AQI,new_df$visibility,color=new_df$AQI_Category,main = "Scatter Plot Between AQI and Wind Speed",
+      xlab = "AQI",ylab = "Wind Speed")+scale_color_manual(values=c("MAgenta", "brown", "#56B4E9","orange"))
+
+plot(new_df$windspeedKmph,new_df$AQI)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
